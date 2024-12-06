@@ -4,6 +4,8 @@ from trio_websocket import open_websocket_url, ConnectionClosed
 import os
 import itertools
 from random import randint
+import sys
+import contextlib
 
 SLEEP_SEC=0
 
@@ -57,4 +59,5 @@ async def main():
             nursery.start_soon(broadcast_bus_route, reader)
 
 if __name__ == '__main__':
-    trio.run(main)
+    with contextlib.suppress(KeyboardInterrupt):
+        trio.run(main)
