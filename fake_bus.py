@@ -1,6 +1,6 @@
 import trio
 import json
-from trio_websocket import open_websocket_url, ConnectionClosed
+from trio_websocket import open_websocket_url, ConnectionClosed, HandshakeError
 import os
 import itertools
 from random import randint
@@ -76,14 +76,21 @@ async def run_bus(route, writer, emulator_id):
 async def generate_buses(buses_per_route, server, routes_number, websockets_number, emulator_id, refresh_timeout, v):
     writer, reader = trio.open_memory_channel(1)
     logging.info('Starting bus simulation...')
-    async with trio.open_nursery() as nursery:
-        for route in load_routes('routes', routes_number):
-            for _ in range(buses_per_route):
-                nursery.start_soon(run_bus, route, writer, emulator_id)
-        for _ in range(websockets_number):
-            nursery.start_soon(broadcast_bus_route, reader, server, refresh_timeout)
-        logging.info(f'Started {buses_per_route * routes_number} buses on {websockets_number} websockets')
-
+    while True:
+        try:
+            async with trio.open_nursery() as nursery:
+                for route in load_routes('routes', routes_number):
+                    for _ in range(buses_per_route):
+                        nursery.start_soon(run_bus, route, writer, emulator_id)
+                for _ in range(websockets_number):
+                    nursery.start_soon(broadcast_bus_route, reader, server, refresh_timeout)
+                logging.info(f'Started {buses_per_route * routes_number} buses on {websockets_number} websockets')
+        except ExceptionGroup as eg:
+            for exc in eg.exceptions:
+                if isinstance(exc, (HandshakeError, ConnectionRefusedError)):
+                    logging.info(f'HandshakeError. Connected to server {server} failed')
+                    await trio.sleep(1)
+                    continue
 
 @click.command()
 @click.option('--buses_per_route', default=1, help='Number of buses on each route')
