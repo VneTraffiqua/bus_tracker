@@ -2,6 +2,17 @@ import trio
 from trio_websocket import serve_websocket, ConnectionClosed
 from functools import partial
 import json
+import logging
+
+
+logging.basicConfig(
+        format=u'%(filename)s[LINE:%(lineno)d]# %(levelname)-4s [%(asctime)s]  %(message)s',
+        level=logging.INFO,
+        filename='server_logger.log'
+    )
+
+def is_inside(bounds, lat, lng):
+    return bounds['south_lat'] <= lat <= bounds['north_lat'] and bounds['west_lng'] <= lng <= bounds['east_lng']
 
 
 async def get_coordinates(request, buses_on_map):
@@ -11,22 +22,26 @@ async def get_coordinates(request, buses_on_map):
             message = await ws.get_message()
             message = json.loads(message)
             buses_on_map[message['busId']] = message
-            await trio.sleep(1)
+            # await trio.sleep(1)
         except ConnectionClosed:
             break
-
 
 async def talk_to_browser(request, buses_on_map):
     ws = await request.accept()
     message = await ws.get_message()
-    print(message)
+    message = json.loads(message)
+    buses = []
+    for key, value in buses_on_map.items():
+        if is_inside(message['data'],value['lat'], value['lng']):
+            buses.append(value)
+            logging.info(message)
+            logging.info(f'{len(buses)} buses inside bounds')
     response = {
         "msgType": "Buses",
-        "buses": []
+        "buses": buses
     }
-    for key, value in buses_on_map.items():
-        response['buses'].append(value)
     await ws.send_message(json.dumps(response))
+
 
 
 async def main():
