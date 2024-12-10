@@ -11,20 +11,21 @@ async def get_coordinates(request, buses_on_map):
             message = await ws.get_message()
             message = json.loads(message)
             buses_on_map[message['busId']] = message
-            # await trio.sleep(1)
+            await trio.sleep(1)
         except ConnectionClosed:
             break
 
 
 async def talk_to_browser(request, buses_on_map):
+    ws = await request.accept()
+    message = await ws.get_message()
+    print(message)
     response = {
         "msgType": "Buses",
         "buses": []
     }
-    ws = await request.accept()
     for key, value in buses_on_map.items():
         response['buses'].append(value)
-    print(response)
     await ws.send_message(json.dumps(response))
 
 
