@@ -2,7 +2,7 @@
 
 Веб-приложение показывает передвижение автобусов на карте Москвы.
 
-<img src="buses-on-the-map/screenshots/buses.gif">
+<img src="https://github.com/VneTraffiqua/bus_tracker/blob/master/buses-on-the-map/screenshots/buses.gif?raw=true">
 
 ## Как запустить
 Для работы веб-приложения нужен Python версии не ниже 3.11. Скачайте к себе репозиторий и установите зависимости:
@@ -38,7 +38,7 @@ python fake_bus.py
 
 Внизу справа на странице можно включить отладочный режим логгирования и указать нестандартный адрес веб-сокета.
 
-<img src="buses-on-the-map/screenshots/settings.png">
+<img src="https://raw.githubusercontent.com/VneTraffiqua/bus_tracker/refs/heads/master/buses-on-the-map/screenshots/settings.png">
 
 Настройки сохраняются в Local Storage браузера и не пропадают после обновления страницы. Чтобы сбросить настройки удалите ключи из Local Storage с помощью Chrome Dev Tools —> Вкладка Application —> Local Storage.
 
