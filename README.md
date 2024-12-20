@@ -74,7 +74,11 @@ python fake_bus.py
 }
 ```
 
+## Запуск тестов
 
+```commandline
+pytest test_server.py
+```
 
 ## Используемые библиотеки
 
