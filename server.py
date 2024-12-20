@@ -26,20 +26,21 @@ class Bus:
 
 @dataclass
 class WindowBounds:
-    def __init__(self, east_lng, north_lat, south_lat, west_lng):
-        self.east_lng = east_lng
-        self.north_lat = north_lat
-        self.south_lat = south_lat
-        self.west_lng = west_lng
+    def __init__(self):
+        self.east_lng = None
+        self.north_lat = None
+        self.south_lat = None
+        self.west_lng = None
 
     def is_inside(self, lat, lng):
-        return self.south_lat <= lat <= self.north_lat and self.west_lng <= lng <= self.east_lng
+        if self.south_lat and self.north_lat and self.west_lng and self.east_lng:
+            return self.south_lat <= lat <= self.north_lat and self.west_lng <= lng <= self.east_lng
 
     def update(self, bounds):
-        self.south_lat = bounds['south_lat']
-        self.north_lat = bounds['north_lat']
-        self.west_lng = bounds['west_lng']
-        self.east_lng = bounds['east_lng']
+            self.south_lat = bounds['south_lat']
+            self.north_lat = bounds['north_lat']
+            self.west_lng = bounds['west_lng']
+            self.east_lng = bounds['east_lng']
 
 async def get_coordinates(request, buses_on_map):
     ws = await request.accept()
@@ -49,6 +50,22 @@ async def get_coordinates(request, buses_on_map):
             message = json.loads(message)
             bus = Bus(busId=message['busId'], lat=message['lat'], lng=message['lng'], route=message['route'])
             buses_on_map.append(bus)
+        except json.JSONDecodeError:
+            response = {
+                "errors": ["Requires valid JSON"],
+                "msgType": "Errors"
+            }
+            logging.info(response)
+            await ws.send_message(json.dumps(response))
+            continue
+        except KeyError:
+            response = {
+                "errors": ["Requires valid JSON"],
+                "msgType": "Errors"
+            }
+            logging.info(response)
+            await ws.send_message(json.dumps(response))
+            continue
         except ConnectionClosed:
             break
 
@@ -57,11 +74,42 @@ async def listen_browser(ws ,bounds):
         try:
             message = await ws.get_message()
             logging.info(message)
-            new_bounds = json.loads(message)['data']
-            bounds.update(new_bounds)
-            logging.info(f'New bounds: {new_bounds}')
+            if 'msgType' not in message:
+                response = {
+                    "errors": ["Requires msgType specified"],
+                    "msgType": "Errors"
+                }
+                logging.info(response)
+                await ws.send_message(json.dumps(response))
+                continue
+            if json.loads(message)['msgType'] == 'newBounds' and 'data' in message:
+                new_bounds = json.loads(message)['data']
+                bounds.update(new_bounds)
+                await ws.send_message('OK')
+            else:
+                response = {
+                    "errors": ["Requires valid JSON"],
+                    "msgType": "Errors"
+                }
+                await ws.send_message(json.dumps(response))
             await trio.sleep(1)
         except ConnectionClosed:
+            break
+        except json.JSONDecodeError:
+            response = {
+                "errors": ["Requires valid JSON"],
+                "msgType": "Errors"
+            }
+            logging.info(response)
+            await ws.send_message(json.dumps(response))
+            continue
+        except TypeError:
+            response = {
+                "errors": ["Requires valid JSON"],
+                "msgType": "Errors"
+            }
+            logging.info(response)
+            await ws.send_message(json.dumps(response))
             continue
 
 
@@ -77,26 +125,20 @@ async def sent_to_browser(ws, buses_on_map, bounds):
                 "msgType": "Buses",
                 "buses": buses_in_bounds
             }
-            logging.info(f'{len(buses_in_bounds)} buses inside bounds')
-            await ws.send_message(json.dumps(response))
+            if buses_in_bounds:
+                await ws.send_message(json.dumps(response))
+            await trio.sleep(0.1)
+            logging.debug(response)
         except ConnectionClosed:
-            continue
+            break
 
 
 async def talk_to_browser(request, buses_on_map):
     ws = await request.accept()
-    message = await ws.get_message()
-    message = json.loads(message)
-    bounds = WindowBounds(
-        south_lat=message['data']['south_lat'],
-        north_lat=message['data']['north_lat'],
-        west_lng=message['data']['west_lng'],
-        east_lng=message['data']['east_lng'],
-    )
+    bounds = WindowBounds()
     async with trio.open_nursery() as nursery:
         nursery.start_soon(sent_to_browser, ws, buses_on_map, bounds)
         nursery.start_soon(listen_browser, ws ,bounds)
-    await listen_browser(ws,bounds)
 
 
 async def start_server(bus_port, server_port):

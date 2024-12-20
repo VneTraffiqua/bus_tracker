@@ -95,7 +95,7 @@ async def generate_buses(buses_per_route, server, routes_number, websockets_numb
 @click.command()
 @click.option('--buses_per_route', default=1, help='Number of buses on each route')
 @click.option('--server', default='127.0.0.1', help='Server address')
-@click.option('--routes_number', default=100, help='Number of routes')
+@click.option('--routes_number', default=200, help='Number of routes')
 @click.option('--websockets_number', default=1, help='Number of open websockets')
 @click.option('--emulator_id', default=True, help='Prefix to busId')
 @click.option('--refresh_timeout', default=0, help='Delay in updating server coordinates')
